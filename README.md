@@ -1,1 +1,1 @@
-# hal
+# HAL - _Home Automation Layer_
