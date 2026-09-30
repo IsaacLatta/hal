@@ -1,0 +1,20 @@
+%%{init: {"theme": "neutral", "flowchart": {"nodeSpacing": 25, "rankSpacing": 25, "curve": "linear"}}}%%
+flowchart LR
+    sensor["Sensor calls<br/>strategy.read()<br/>(with decorators)"]
+    event["Publish sensor<br/>event"]
+    factory["Automation observer calls<br/>factory.createCommands(event)"]
+    state{"Factory calls<br/>current State<br/>createCommands(event)"}
+    command["Observer calls<br/>execute() for each<br/>returned command"]
+
+    sensor --> event --> factory --> state
+    state -->|Home / Away| command
+    state -->|Observe| none["Empty command list:<br/>no automatic actions<br/>or alerts"]
+    event --> monitor["UI updates readings;<br/>log records event<br/>(all modes)"]
+    command --> result["Device reports outcome<br/>or alert is published;<br/>UI and log update"]
+
+    %% Main flow: strategy call -> event -> factory call -> state call -> command call.
+    %% Home/Away can also return no commands when an event needs no response.
+    %% Commands and notifications execute sequentially, not on parallel threads.
+    %% Observe continues monitoring/logging and permits manual controls.
+    %% Manual controls and mode transitions are omitted from this sensor flow.
+    %% Automation observers filter their own result events to prevent feedback loops.

@@ -1,0 +1,114 @@
+%%{init: {"theme": "default", "themeVariables": {"background": "#ffffff"}}}%%
+
+classDiagram
+    direction TB
+
+    class Sensor {
+        +sample()
+    }
+    class SensorStrategy {
+        <<interface>>
+        +read() SensorEvent
+    }
+    class SimulatedSensorStrategy {
+        +read() SensorEvent
+    }
+    class SimulationDecorator {
+        <<abstract>>
+        -SensorStrategy wrapped
+        +read() SensorEvent
+    }
+    class FailureDecorator {
+        +read() SensorEvent
+    }
+    class ScriptedOutputDecorator {
+        +read() SensorEvent
+    }
+
+    Sensor --> SensorStrategy : calls
+    SensorStrategy <|.. SimulatedSensorStrategy
+    SensorStrategy <|.. SimulationDecorator
+    SimulationDecorator o-- SensorStrategy : wraps
+    SimulationDecorator <|-- FailureDecorator
+    SimulationDecorator <|-- ScriptedOutputDecorator
+    note for SensorStrategy "Strategy: interchangeable reading behaviour.\nConcrete strategies represent temperature, motion, door, or smoke input."
+    note for SimulationDecorator "Decorator: adds failure or scripted-output behaviour.\nOne shared timer calls Sensor.sample()."
+
+    class EventSource {
+        +subscribe(observer)
+        +publish(event)
+    }
+    class Observer {
+        <<interface>>
+        +onEvent(event)
+    }
+    class AutomationObserver {
+        +onEvent(event)
+    }
+    class UIObserver {
+        +onEvent(event)
+    }
+    class LogObserver {
+        +onEvent(event)
+    }
+
+    Sensor --> EventSource : publishes readings and availability
+    EventSource o-- Observer : notifies subscribers
+    Observer <|.. AutomationObserver
+    Observer <|.. UIObserver
+    Observer <|.. LogObserver
+    note for EventSource "Observer: typed sensor, device-state, mode, and alert events.\nMonitoring and logging stay active in every mode."
+
+    class CommandFactory {
+        -AutomationState state
+        +createCommands(event) List~Command~
+        +setState(state)
+    }
+    class AutomationState {
+        <<interface>>
+        +createCommands(event) List~Command~
+    }
+    class HomeState {
+        +createCommands(event) List~Command~
+    }
+    class AwayState {
+        +createCommands(event) List~Command~
+    }
+    class ObserveState {
+        +createCommands(event) List~Command~
+    }
+
+    AutomationObserver --> CommandFactory : requests commands
+    CommandFactory --> AutomationState : delegates to current mode
+    AutomationState <|.. HomeState
+    AutomationState <|.. AwayState
+    AutomationState <|.. ObserveState
+    UIObserver --> CommandFactory : selects mode
+    note for CommandFactory "Factory: shared command-creation entry point.\nOwns one current State used by all automation observers."
+    note for ObserveState "Returns an empty command list.\nNo automatic device actions or alerts."
+
+    class Command {
+        <<interface>>
+        +execute()
+    }
+    class DeviceCommand {
+        +execute()
+    }
+    class AlertCommand {
+        +execute()
+    }
+    class SmartDevice {
+        +apply(action)
+        +getState()
+    }
+
+    Command <|.. DeviceCommand
+    Command <|.. AlertCommand
+    AutomationState ..> Command : creates mode-appropriate commands
+    CommandFactory ..> Command : returns
+    AutomationObserver --> Command : executes
+    DeviceCommand --> SmartDevice : receiver
+    SmartDevice --> EventSource : reports actual state or failure
+    AlertCommand --> EventSource : publishes alert
+    note for Command "Command: explicit device actions or alerts.\nManual controls execute commands without mode filtering."
+    UIObserver --> DeviceCommand : manual controls
